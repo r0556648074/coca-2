@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק חיתוך פירות</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: #ffcccb; /* צבע רקע ורוד */
+            height: 100vh;
+        }
+        canvas {
+            background-color: #ffffff; /* צבע רקע לבן לקנבס */
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            margin: 20px; /* הוספת מרווח מסביב לקנבס */
+        }
+        #scoreboard {
+            font-size: 20px;
+            margin: 10px;
+        }
+        #restartButton {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #ff0000;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="scoreboard">
+        פירות חתוכים: <span id="fruitsCut">0</span> | פצצות שפגעתי: <span id="bombsHit">0</span>
+    </div>
+    <canvas id="gameCanvas" width="305" height="580"></canvas>
+    <button id="restartButton" onclick="restartGame()">הפעל מחדש</button>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const fruitsCut = document.getElementById('fruitsCut');
+        const bombsHit = document.getElementById('bombsHit');
+        const restartButton = document.getElementById('restartButton');
+        
+        let fruits = [];
+        let bombs = [];
+        let fruitsCutCount = 0;
+        let bombsHitCount = 0;
+        let gameOver = false;
+        
+        const fruitImage = new Image();
+        fruitImage.src = '3.png'; // קישור לתמונת פרי
+        const fruitCutImage = new Image();
+        fruitCutImage.src = '5.png'; // קישור לתמונת פרי חתוך
+        
+        const bombImage = new Image();
+        bombImage.src = '100.png'; // קישור לתמונת פצצה
+        const bombExplodedImage = new Image();
+        bombExplodedImage.src = '101.png'; // קישור לתמונת פצצה מתפוצצת
+        
+        class Fruit {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 40;
+                this.type = 'fruit';
+                this.dx = (Math.random() - 0.5) * 4;
+                this.dy = (Math.random() - 0.5) * 4;
+                this.angle = 0;
+                this.image = fruitImage;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.drawImage(this.image, -this.size, -this.size, this.size * 2, this.size * 2);
+                ctx.restore();
+            }
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+                this.angle += 0.05;
+                if (this.x < 0 || this.x > canvas.width) this.dx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.dy *= -1;
+            }
+            cut() {
+                fruitsCutCount++;
+                fruitsCut.innerText = fruitsCutCount;
+                this.image = fruitCutImage;
+            }
+        }
+        
+        class Bomb {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 40;
+                this.type = 'bomb';
+                this.dx = (Math.random() - 0.5) * 4;
+                this.dy = (Math.random() - 0.5) * 4;
+                this.angle = 0;
+                this.image = bombImage;
+                this.exploded = false;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.drawImage(this.image, -this.size, -this.size, this.size * 2, this.size * 2);
+                ctx.restore();
+            }
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+                this.angle += 0.05;
+                if (this.x < 0 || this.x > canvas.width) this.dx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.dy *= -1;
+            }
+            hit() {
+                if (!this.exploded) {
+                    bombsHitCount++;
+                    bombsHit.innerText = bombsHitCount;
+                    this.image = bombExplodedImage;
+                    this.size *= 1.5; // הגדלה פי 1.5 במקום פי 3
+                    this.exploded = true;
+                    if (bombsHitCount > 3) {
+                        gameOver = true;
+                        restartButton.style.display = 'block';
+                    }
+                }
+            }
+        }
+        
+        function spawnFruit() {
+            if (gameOver) return;
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            fruits.push(new Fruit(x, y));
+            setTimeout(spawnFruit, 2500); // נמוך ב-40% מהתזמון הקודם
+        }
+        
+        function spawnBomb() {
+            if (gameOver) return;
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            bombs.push(new Bomb(x, y));
+            setTimeout(spawnBomb, 5000); // נמוך ב-40% מהתזמון הקודם
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            fruits.forEach(fruit => {
+                fruit.update();
+                fruit.draw();
+            });
+            bombs.forEach(bomb => {
+                bomb.update();
+                bomb.draw();
+            });
+            if (!gameOver) {
+                requestAnimationFrame(draw);
+            }
+        }
+        
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            fruits.forEach(fruit => {
+                if (Math.hypot(fruit.x - x, fruit.y - y) < fruit.size) {
+                    fruit.cut();
+                }
+            });
+            
+            bombs.forEach(bomb => {
+                if (Math.hypot(bomb.x - x, bomb.y - y) < bomb.size) {
+                    bomb.hit();
+                }
+            });
+        });
+        
+        function restartGame() {
+            fruits = [];
+            bombs = [];
+            fruitsCutCount = 0;
+            bombsHitCount = 0;
+            gameOver = false;
+            fruitsCut.innerText = fruitsCutCount;
+            bombsHit.innerText = bombsHitCount;
+            restartButton.style.display = 'none';
+            draw();
+            spawnFruit();
+            spawnBomb();
+        }
+        
+        restartGame();
+    </script>
+</body>
+</html>
